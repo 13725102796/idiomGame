@@ -26,7 +26,7 @@
             <div>
               <p class="time" v-for="(item,idx) in userData" :key="idx">
                 第{{idx + 1}}局用时： {{item.time}}s
-                <van-tag :type="item.result ?'success' : 'danger'"> {{item.result ? '获胜' : '失败'}}</van-tag>
+                <van-tag :type="item.result ?'success' : 'danger'">{{item.result ? '获胜' : '失败'}}</van-tag>
               </p>
             </div>
           </van-panel>
@@ -36,7 +36,7 @@
             <div>
               <p class="time" v-for="(item,idx) in vsUserData" :key="idx">
                 第{{idx + 1}}局用时： {{item.time}}s
-                 <van-tag :type="item.result ?'success' : 'danger'"> {{item.result ? '获胜' : '失败'}}</van-tag>
+                <van-tag :type="item.result ?'success' : 'danger'">{{item.result ? '获胜' : '失败'}}</van-tag>
               </p>
             </div>
           </van-panel>
@@ -47,7 +47,10 @@
 </template>
 <script>
 import { mapState } from "vuex";
-import { shuffle } from "@/util";
+import { shuffle, rnd } from "@/util";
+import { setTimeout } from "timers";
+// var vsTimer = null
+
 export default {
   data() {
     return {
@@ -62,8 +65,10 @@ export default {
       userData: [],
       vsUserData: [],
       nowGameNum: 0,
-      nowTime: '',
-      successId: '',
+      nowTime: "",
+      successId: "",
+      vsTimer: "",
+      isRobot: false
     };
   },
   computed: {
@@ -106,7 +111,7 @@ export default {
       }
     },
     checkResult() {
-      const self = this
+      const self = this;
       const canIndex = this.idiomArr.findIndex(item => {
         if (!item || item == "*") return item;
       });
@@ -117,13 +122,32 @@ export default {
         if (idiomStr === this.idiom.val) {
           // right
           this.$toast("回答正确");
+          // checkRobot
           const time = new Date().getTime() - this.nowTime;
-          console.log(self.user.username)
-          this.$socket.emit("successGame", {
-            vsId: self.vsUser.username,
-            time: time,
-            val: idiomStr
-          });
+          if (self.isRobot) {
+            // clear
+            console.log('清除定时器')
+            console.log(self.vsTimer)
+            clearTimeout(self.vsTimer._id || '');
+            self.userData.push({
+              time: time,
+              result: true
+            });
+            self.vsUserData.push({
+              time: "",
+              result: false
+            });
+            
+            self.nextOne()
+          } else {
+            this.$socket.emit("successGame", {
+              vsId: self.vsUser.username,
+              time: time,
+              val: idiomStr
+            });
+          }
+
+          console.log(self.user.username);
         } else {
           this.$toast("回答错误");
         }
@@ -132,7 +156,7 @@ export default {
     init() {
       // this.idiomArr = [];
       // this.mixArr = [];
-      console.log('开始初始化')
+      console.log("开始初始化");
       this.hideArr = [];
       this.idiom = this.allIdiom[this.nowGameNum];
 
@@ -147,45 +171,112 @@ export default {
       console.log(idiomArr);
       this.mixArr = shuffle(mixArr);
 
-      this.nowTime = new Date().getTime()
+      this.nowTime = new Date().getTime();
+    },
+    robotAct() {
+      const random = rnd(1, 6);
+      console.log('添加定时器');
+      // clearTimeout(this.vsTimer._id || '')
+      console.log(this.vsTimer)
+      this.vsTimer = setTimeout(() => {
+        // 机器人获胜
+        console.log("您失败了")
+        this.$toast("您失败了");
+        this.userData.push({
+          time: "",
+          result: false
+        });
+
+        const time = new Date().getTime() - this.nowTime;
+        this.vsUserData.push({
+          time: time,
+          result: true
+        });
+        this.nextOne();
+      }, random * 2000);
+      // console.log(vsTimer)
+    },
+    nextOne() {
+
+      this.nowGameNum++
+      if (this.allIdiom[this.nowGameNum]) {
+        
+        this.$toast("开始下一关");
+        setTimeout(()=>{
+          this.init()
+          this.robotAct()
+        },5000)
+        
+        return;
+      } else {
+        this.$toast("游戏结束");
+        console.log("游戏结束");
+        this.getResult()
+        // 统计结果，传到服务器
+        // 回到首页
+        // this.$router.replace('/home')
+      }
+    },
+    getResult(){
+      const selfWin = this.userData.filter(item=>{
+        if(item.result) return item
+      })
+      const vsWin = this.vsUserData.filter(item=>{
+        if(item.result) return item
+      })
+      if(selfWin.length > vsWin.length) {
+        console.log('您获得了最终的胜利')
+      } else {
+        console.log('对方获得了最终的胜利')
+      }
     }
   },
   mounted() {
-    // this.nowGameNum = 0
-    // game init
-    this.init()
-    // 开启胜利监听
-    
+    // check robot
+    this.init();
 
-    const self = this;
-    this.$socket.on("handleResult", function(data) {
-      self.userData = data.selfMsg;
-      self.vsUserData = data.vsMsg;
-      // console.log(data)
-      self.$toast(data.result ? "您获胜了" : "您失败了");
-      self.successId = data.result ? self.user.username : self.vsUser.username
-      // 判断进入下一个关卡
-      self.nowGameNum++;
-      console.log(self.nowGameNum)
-      console.log(self.allIdiom[self.nowGameNum])
-      if (self.allIdiom[self.nowGameNum]) {
-        self.init()
-        self.$toast("开始下一关");
-        return 
-      } else {
-        self.$toast("游戏结束");
-        console.log("游戏结束")
+    if (this.vsUser.type && this.vsUser.type == "robot") {
+      this.isRobot = true;
+      this.robotAct();
+    } else {
+      // game init
+      // 开启胜利监听
 
-        // 把结果上传到服务器，通知socket,移除该两个玩家并清除数据
-        self.$socket.emit('gameOver')
-      }
-    });
-    this.$socket.on("gameOver",function(data){
-      console.log(data)
-      self.nowGameNum = 0
-      // location.href = location.origin + '/room?room=' + self.successId
-      self.$router.replace({path: '/room', query:{room: self.successId }})
-    })
+      const self = this;
+      this.$socket.on("handleResult", function(data) {
+        self.userData = data.selfMsg;
+        self.vsUserData = data.vsMsg;
+        // console.log(data)
+        self.$toast(data.result ? "您获胜了" : "您失败了");
+        self.successId = data.result
+          ? self.user.username
+          : self.vsUser.username;
+        // 判断进入下一个关卡
+        self.nowGameNum++;
+        console.log(self.nowGameNum);
+        console.log(self.allIdiom[self.nowGameNum]);
+        if (self.allIdiom[self.nowGameNum]) {
+          self.init();
+          self.$toast("开始下一关");
+          return;
+        } else {
+          self.$toast("游戏结束");
+          console.log("游戏结束");
+
+          // 把结果上传到服务器，通知socket,移除该两个玩家并清除数据
+          self.$socket.emit("gameOver");
+        }
+      });
+      this.$socket.on("gameOver", function(data) {
+        console.log(data);
+        self.nowGameNum = 0;
+        // location.href = location.origin + '/room?room=' + self.successId
+        self.$router.replace({
+          path: "/room",
+          query: { room: self.successId }
+        });
+      });
+    }
   }
 };
 </script>

@@ -24,7 +24,8 @@ export default {
 			console.log('开启智能匹配！')
       console.log('游戏开始')
       self.$router.push('/game')
-      self.$store.commit('SETVSUSER', {username: '我是智能机器人'})
+      // 随机生成一条假的用户数据
+      self.$store.commit('SETVSUSER', {username: '我是智能机器人', type: "robot"})
 		})
 		this.$socket.on('play', function (data) {
 			console.log(data)

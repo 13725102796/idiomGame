@@ -30,19 +30,8 @@ export function shuffle(a) {
  return a;
 }
 
-// export function parseInt() {
-//   if (location.search.length <= 0) return false;
-//   var info = location.search.slice(1);
-//   var result = {};
-//   console.log(info)
-//   if (info.indexOf('&') > 0) {
-//     info.split('&').foreach(item => {
-//       result[decodeURIComponent(item.split('=')[0])] = decodeURIComponent(item.split('=')[1]);
-//     });
-//   } else {
-//     result[decodeURIComponent(info.split('=')[0])] = decodeURIComponent(info.split('=')[1]);
-//   }
+export function rnd(n, m){
+  var random = Math.floor(Math.random()*(m-n+1)+n);
+  return random;
+}
 
-//   console.log(result)
-//   return result;
-// }
