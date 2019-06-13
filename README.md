@@ -1,7 +1,7 @@
 <p align="center">
     <!-- <img alt="logo" src="" width="120" style="margin-bottom: 10px;"> -->
 </p>
-<h3 align="center" style="margin: 30px 0 35px;">uni-app 下拉刷新上拉加载</h3>
+<h3 align="center" style="margin: 30px 0 35px;">vue版 成语猜猜基础架构</h3>
 
 ---
 
